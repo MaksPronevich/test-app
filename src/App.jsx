@@ -1,64 +1,49 @@
-import { useState } from 'react';
+import { useAccount, useContractRead } from 'wagmi';
+import { useState, useEffect } from 'react';
 import { Header, Form, TasksList } from './components';
-
-const dataDB = [
-	{
-		_id: '9094032910',
-		title: 'Learn Solidity language and comlete test app',
-		description:
-			'Lorem ipsum, dolor sit amet consectetur adipisicing elit. Incidunt maxime laborum voluptatum molestias repellat minus magni, dignissimos officia error aliquid.',
-		deadline: '2023-09-15 12:30',
-		isCompleted: false,
-	},
-	{
-		_id: '90940232910',
-		title: 'Learn vite, complete test app',
-		description: 'Lorem ipsum dolor sit amet consectetur adipisicing elit. Perspiciatis dolorum assumenda iure consectetur quidem eum.',
-		deadline: '2023-11-15 12:30',
-		isCompleted: true,
-	},
-];
+import contractABI from '../data.json';
 
 export const App = () => {
-	const [tasks, setTasks] = useState(dataDB);
+	const { isConnected } = useAccount();
+	const [connectionStat, setConnectionStat] = useState();
+	const [tasks, setTasks] = useState([]);
 
-	const addTask = (title, description, deadline) => {
-		const newTask = {
-			_id: Math.random(),
-			title,
-			description,
-			deadline: deadline.replace('T', ' '),
-			isComleted: false,
-		};
+	useEffect(() => {
+		setConnectionStat(isConnected);
+	}, [isConnected]);
 
-		setTasks(prev => [newTask, ...prev]);
-	};
+	const { data: tasksContract, isFetched } = useContractRead({
+		address: '0xE76462D4C20786fb9F63d66deC612599A0477325',
+		abi: contractABI,
+		functionName: 'getTasks',
+		onSuccess(data) {
+			console.log('Success getTasks', data);
+		},
+		onError(error) {
+			console.log('Error getTasks', error);
+		},
+	});
 
-	const toggleCompleted = taskId => {
-		const copyTasks = [...tasks];
-		const currentTask = copyTasks.find(task => task._id === taskId);
-		currentTask.isCompleted = !currentTask.isCompleted;
-		setTasks(copyTasks);
-	};
-
-	const removeTask = taskId => {
-		setTasks([...tasks].filter(task => task._id !== taskId));
-	};
+	useEffect(() => {
+		setTasks(tasksContract);
+	}, [tasksContract]);
 
 	return (
 		<>
 			<Header />
-			<main className='mt-6'>
-				<div className='container mx-auto p-4'>
-					<div className='flex justify-between gap-14'>
-						<div className='max-w-xs flex-auto'>
-							<h3 className='mb-5 text-3xl font-bold'>Create task</h3>
-							<Form onAdd={addTask} />
+			{connectionStat && (
+				<main className='mt-6'>
+					<div className='container mx-auto p-4'>
+						<div className='flex justify-between gap-14'>
+							<div className='max-w-xs flex-auto'>
+								<h3 className='mb-5 text-3xl font-bold'>Create task</h3>
+								<Form contractABI={contractABI} />
+							</div>
+							<TasksList tasks={tasks} isFetched={isFetched} contractABI={contractABI} />
 						</div>
-						<TasksList tasks={tasks} toggleCompleted={toggleCompleted} removeTask={removeTask} />
 					</div>
-				</div>
-			</main>
+				</main>
+			)}
 		</>
 	);
 };
